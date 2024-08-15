@@ -256,7 +256,23 @@ def find_hosts_on_network(s):
     # Run the command and capture the output
     result = subprocess.run(command, capture_output=True, text=True)
     send_data(s,"------------------- HOSTS UP IN NETWORK -------------------")
-    send_data(s, result.stdout)
+
+    # Regular expressions to capture host information
+    host_pattern = r'Nmap scan report for ([\w.-]+) \(([\d.]+)\)'
+
+    # Find all hosts
+    hosts = re.findall(host_pattern, result.stdout)
+
+    # Split the nmap output by hosts
+    host_sections = re.split(r'Nmap scan report for ', result.stdout)[1:]
+
+    output = []
+    for line in host_sections:
+        if "[host down]" not in line:
+            output.append(line)
+
+    output.pop()
+    send_data(s, ''.join(output))
 
 def find_running_services(s):
     # This defines the nmap and its arguments
