@@ -256,6 +256,25 @@ def find_hosts_on_network(s):
     # Run the command and capture the output
     result = subprocess.run(command, capture_output=True, text=True)
     send_data(s,"------------------- HOSTS UP IN NETWORK -------------------")
+    
+    data = result.stdout.splitlines()
+    output = []
+
+    for line in data:
+        if line.startswith("Nmap scan report for"):
+            line = line.replace("Nmap scan report for", "").strip()
+            output.append(line)
+    
+    send_data(s, '\n'.join(output))
+
+def find_running_services(s):
+    # This defines the nmap and its arguments
+    command = ['nmap', '-sV', '-T4', '-v', get_network_addr()]
+
+    # Run the command and capture the output
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    send_data(s,"------------------- SERVICES AND OPEN PORTS PERTAINING TO EACH HOST ON THE NETWORK -------------------")
 
     # Regular expressions to capture host information
     host_pattern = r'Nmap scan report for ([\w.-]+) \(([\d.]+)\)'
@@ -274,16 +293,8 @@ def find_hosts_on_network(s):
     output.pop()
     send_data(s, ''.join(output))
 
-def find_running_services(s):
-    # This defines the nmap and its arguments
-    command = ['nmap', '-sV', '-T4', '-v', get_network_addr()]
-
-    # Run the command and capture the output
-    result = subprocess.run(command, capture_output=True, text=True)
-
-    send_data(s,"------------------- SERVICES AND OPEN PORTS PERTAINING TO EACH HOST ON THE NETWORK -------------------")
-    send_data(s, result.stdout)
-
+def get_user_info():
+    # Get the list of user accounts with UID >= 1000
 
 
 
