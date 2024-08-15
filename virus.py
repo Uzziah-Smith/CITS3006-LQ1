@@ -293,8 +293,46 @@ def find_running_services(s):
     output.pop()
     send_data(s, ''.join(output))
 
+
 def get_user_info():
     # Get the list of user accounts with UID >= 1000
+    try:
+        result = subprocess.run(['awk', '-F:', '$3 >= 1000 { print $1 }', '/etc/passwd'],
+                                text=True, capture_output=True, check=True)
+        users = result.stdout.splitlines()
+    except subprocess.CalledProcessError as e:
+        print(f"Error fetching users: {e}")
+        return
+
+    for user in users:
+        # Get user details
+        user_info = subprocess.run(['getent', 'passwd', user], text=True, capture_output=True, check=True)
+        user_details = user_info.stdout.strip().split(':')
+        uid, gid, full_name, home_dir, shell = user_details[2], user_details[3], user_details[4], user_details[5], user_details[6]
+
+        # Get last login info
+        last_login_info = subprocess.run(['lastlog', '-u', user], text=True, capture_output=True, check=True)
+        last_login = last_login_info.stdout.splitlines()[1].strip() if len(last_login_info.stdout.splitlines()) > 1 else "N/A"
+
+        # Get password info
+        password_info = subprocess.run(['chage', '-l', user], text=True, capture_output=True, check=True)
+        password_info_lines = password_info.stdout.splitlines()
+
+        # Print user information
+        send_data(s,f"User: {user}")
+        send_data(s,f"UID: {uid}")
+        send_data(s,f"GID: {gid}")
+        send_data(s,f"Full Name: {full_name}")
+        send_data(s,f"Home Directory: {home_dir}")
+        send_data(s,f"Shell: {shell}")
+        send_data(s,f"Last Login: {last_login}")
+        send_data(s,"Password Info:")
+        for line in password_info_lines:
+            send_data(s,f"    {line}")
+            send_data(s, "\n")
+
+# Run the function
+get_user_info()
 
 
 
